@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Explain-Back Homework Coach</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/marked@9.1.6/marked.min.js"></script>
+<script src="https://unpkg.com/chart.js@4.4.1/dist/chart.umd.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: { nunito: ['Nunito', 'sans-serif'] },
+      colors: {
+        primary: '#6C5CE7',
+        'primary-dark': '#5A4BD1',
+        secondary: '#00CEC9',
+        accent: '#FDCB6E',
+        warm: '#FFF3E0',
+        cool: '#E8F5E9',
+        danger: '#FF7675',
+        bg: '#F8F7FF',
+      }
+    }
+  }
+}
+</script>
+<style>
+* { font-family: 'Nunito', sans-serif; }
+body { background: #F8F7FF; }
+.chat-bubble { max-width: 85%; animation: bubbleIn 0.3s ease-out; }
+@keyframes bubbleIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+.typing-dot { animation: pulse 1.4s infinite; }
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+.subject-btn:active { transform: scale(0.95); }
+.tab-active { border-bottom: 3px solid #6C5CE7; color: #6C5CE7; font-weight: 700; }
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-thumb { background: #6C5CE7; border-radius: 4px; }
+.grade-select:focus { outline: none; box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.3); }
+input:focus, textarea:focus { outline: none; box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.3); }
+.progress-ring { transition: stroke-dashoffset 0.5s ease; }
+</style>
+</head>
+<body class="min-h-screen bg-bg font-nunito">
+
+<div id="app" class="max-w-lg mx-auto min-h-screen flex flex-col">
+  <!-- Header -->
+  <header class="bg-primary text-white px-4 py-3 flex items-center justify-between shadow-lg sticky top-0 z-50">
+    <div class="flex items-center gap-2">
+      <span class="text-2xl">🧠</span>
+      <div>
+        <h1 class="text-lg font-extrabold leading-tight">Explain-Back</h1>
+        <p class="text-xs opacity-80">Homework Coach</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="showScreen('progress')" class="p-2 rounded-full hover:bg-white/20 transition" title="Progress">📊</button>
+      <button onclick="showScreen('settings')" class="p-2 rounded-full hover:bg-white/20 transition" title="Settings">⚙️</button>
+    </div>
+  </header>
+
+  <!-- Onboarding Screen -->
+  <div id="screen-onboarding" class="flex-1 flex flex-col items-center justify-center p-6 text-center">
+    <div class="text-6xl mb-4">👋</div>
+    <h2 class="text-2xl font-extrabold text-gray-800 mb-2">Welcome, Future Expert!</h2>
+    <p class="text-gray-600 mb-6">I'm your homework coach. I won't just check answers — I'll help you <span class="font-bold text-primary">truly understand</span> what you're learning! 🚀</p>
+    
+    <div class="w-full space-y-4">
+      <div>
+        <label class="block text-sm font-bold text-gray-700 mb-1 text-left">What's your name? 😊</label>
+        <input id="onboard-name" type="text" placeholder="e.g., Alex" class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 text-lg focus:border-primary transition">
+      </div>
+      <div>
+        <label class="block text-sm font-bold text-gray-700 mb-1 text-left">What grade are you in? 🎓</label>
+        <select id="onboard-grade" class="grade-select w-full px-4 py-3 rounded-xl border-2 border-gray-200 text-lg focus:border-primary transition bg-white">
+          <option value="">Pick your grade...</option>
+          <option value="K">Kindergarten</option>
+          <option value="1">1st Grade</option>
+          <option value="2">2nd Grade</option>
+          <option value="3">3rd Grade</option>
+          <option value="4">4th Grade</option>
+          <option value="5">5th Grade</option>
+          <option value="6">6th Grade</option>
+          <option value="7">7th Grade</option>
+          <option value="8">8th Grade</option>
+        </select>
+      </div>
+      <button onclick="completeOnboarding()" class="w-full bg-primary hover:bg-primary-dark text-white font-bold py-4 rounded-xl text-lg transition transform active:scale-95 shadow-lg">
+        Let's Go! 🎉
+      </button>
+    </div>
+  </div>
+
+  <!-- Home Screen -->
+  <div id="screen-home" class="flex-1 flex flex-col p-4 hidden">
+    <div class="bg-white rounded-2xl p-4 shadow-sm mb-4 flex items-center gap-3">
+      <div class="w-12 h-12 bg-accent rounded-full flex items-center justify-center text-2xl">⭐</div>
+      <div>
+        <p class="text-sm text-gray-500">Welcome back,</p>
+        <p class="font-extrabold text-lg text-gray-800" id="home-name">Student</p>
+      </div>
+      <div class="ml-auto text-right">
+        <p class="text-xs text-gray-500">Streak</p>
+        <p class="font-extrabold text-xl text-primary" id="home-streak">0 🔥</p>
+      </div>
+    </div>
+
+    <h3 class="font-bold text-gray-700 mb-3">📚 What subject is your homework?</h3>
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      <button onclick="startSession('Math')" class="subject-btn bg-white border-2 border-gray-100 hover:border-primary rounded-2xl p-4 text-center transition shadow-sm">
+        <div class="text-3xl mb-1">🔢</div>
+        <div class="font-bold text-gray-800">Math</div>
+      </button>
+      <button onclick="startSession('Science')" class="subject-btn bg-white border-2 border-gray-100 hover:border-primary rounded-2xl p-4 text-center transition shadow-sm">
+        <div class="text-3xl mb-1">🔬</div>
+        <div class="font-bold text-gray-800">Science</div>
+      </button>
+      <button onclick="startSession('Reading')" class="subject-btn bg-white border-2 border-gray-100 hover:border-primary rounded-2xl p-4 text-center transition shadow-sm">
+        <div class="text-3xl mb-1">📖</div>
+        <div class="font-bold text-gray-800">Reading</div>
+      </button>
+      <button onclick="startSession('Social Studies')" class="subject-btn bg-white border-2 border-gray-100 hover:border-primary rounded-2xl p-4 text-center transition shadow-sm">
+        <div class="text-3xl mb-1">🌍</div>
+        <div class="font-bold text-gray-800">Social Studies</div>
+      </button>
+    </div>
+
+    <div class="bg-white rounded-2xl p-4 shadow-sm mb-4">
+      <h3 class="font-bold text-gray-700 mb-2">✍️ Or type your homework problem:</h3>
+      <textarea id="custom-problem" rows="3" placeholder="e.g., Solve 3/4 + 1/2 and explain your steps..." class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 text-base focus:border-primary transition resize-none"></textarea>
+      <button onclick="startCustomSession()" class="w-full mt-2 bg-secondary hover:bg-teal-500 text-white font-bold py-3 rounded-xl transition active:scale-95">
+        Start Explaining! 💬
+      </button>
+    </div>
+
+    <!-- Recent Sessions -->
+    <div id="recent-sessions" class="mb-4">
+      <h3 class="font-bold text-gray-700 mb-2">📋 Recent Sessions</h3>
+      <div id="recent-list" class="space-y-2"></div>
+    </div>
+  </div>
+
+  <!-- Chat Screen -->
+  <div id="screen-chat" class="flex-1 flex flex-col hidden">
+    <div class="bg-white px-4 py-2 border-b flex items-center gap-2">
+      <button onclick="endSession()" class="p-2 rounded-full hover:bg-gray-100 transition text-xl">←</button>
+      <div class="flex-1">
+        <p class="font-bold text-gray-800 text-sm" id="chat-subject">Math</p>
+        <p class="text-xs text-gray-500" id="chat-topic">Explaining your solution</p>
+      </div>
+      <button onclick="endSessionWithSummary()" class="bg-primary text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-primary-dark transition">
+        Finish ✓
+      </button>
+    </div>
+
+    <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3" style="scroll-behavior: smooth;"></div>
+
+    <!-- Typing indicator -->
+    <div id="typing-indicator" class="px-4 py-2 hidden">
+      <div class="chat-bubble bg-gray-100 rounded-2xl rounded-bl-sm px-4 py-3 inline-flex gap-1">
+        <div class="typing-dot w-2 h-2 bg-gray-400 rounded-full"></div>
+        <div class="typing-dot w-2 h-2 bg-gray-400 rounded-full"></div>
+        <div class="typing-dot w-2 h-2 bg-gray-400 rounded-full"></div>
+      </div>
+    </div>
+
+    <!-- Chat Input -->
+    <div class="bg-white border-t p-3">
+      <div class="flex gap-2">
+        <textarea id="chat-input" rows="1" placeholder="Explain in your own words..." class="flex-1 px-4 py-3 rounded-xl border-2 border-gray-200 text-base focus:border-primary transition resize-none" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"></textarea>
+        <button onclick="sendMessage()" id="send-btn" class="bg-primary hover:bg-primary-dark text-white p-3 rounded-xl transition active:scale-95 min-w-[48px] flex items-center justify-center">
+          <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+      </div>
+      <div class="flex gap-2 mt-2 overflow-x-auto pb-1">
+        <button onclick="insertHint('I think the answer is... because...')" class="whitespace-nowrap bg-purple-50 text-primary text-xs font-bold px-3 py-2 rounded-full border border-purple-200 hover:bg-purple-100 transition">💡 I think because...</button>
+        <button onclick="insertHint('First I... then I...')" class="whitespace-nowrap bg-purple-50 text-primary text-xs font-bold px-3 py-2 rounded-full border border-purple-200 hover:bg-purple-100 transition">📝 First... then...</button>
+        <button onclick="insertHint('I\'m not sure about this part')" class="whitespace-nowrap bg-purple-50 text-primary text-xs font-bold px-3 py-2 rounded-full border border-purple-200 hover:bg-purple-100 transition">🤔 I'm not sure...</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary Screen -->
+  <div id="screen-summary" class="flex-1 flex flex-col p-4 hidden overflow-y-auto">
+    <button onclick="showScreen('home')" class="self-start mb-4 text-primary font-bold flex items-center gap-1">← Back Home</button>
+    
+    <div class="bg-white rounded-2xl p-5 shadow-sm mb-4 text-center">
+      <div class="text-5xl mb-2" id="summary-emoji">🌟</div>
+      <h2 class="text-xl font-extrabold text-gray-800 mb-1" id="summary-title">Great Effort!</h2>
+      <p class="text-gray-500 text-sm" id="summary-subtitle">Here's how you did</p>
+    </div>
+
+    <div class="grid grid-cols-3 gap-3 mb-4">
+      <div class="bg-white rounded-xl p-3 text-center shadow-sm">
+        <p class="text-2xl font-extrabold text-primary" id="summary-score">--</p>
+        <p class="text-xs text-gray-500">Score</p>
+      </div>
+      <div class="bg-white rounded-xl p-3 text-center shadow-sm">
+        <p class="text-2xl font-extrabold text-secondary" id="summary-exchanges">--</p>
+        <p class="text-xs text-gray-500">Exchanges</p>
+      </div>
+      <div class="bg-white rounded-xl p-3 text-center shadow-sm">
+        <p class="text-2xl font-extrabold text-accent" id="summary-time">--</p>
+        <p class="text-xs text-gray-500">Minutes</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl p-4 shadow-sm mb-4">
+      <h3 class="font-bold text-gray-800 mb-2">📝 Competency Summary</h3>
+      <div id="summary-text" class="text-gray-600 text-sm leading-relaxed"></div>
+    </div>
+
+    <div class="bg-white rounded-2xl p-4 shadow-sm mb-4">
+      <h3 class="font-bold text-gray-800 mb-2">💪 Strengths</h3>
+      <div id="summary-strengths" class="space-y-1"></div>
+    </div>
+
+    <div class="bg-white rounded-2xl p-4 shadow-sm mb-4">
+      <h3 class="font-bold text-gray-800 mb-2">🎯 Areas to Practice</h3>
+      <div id="summary-gaps" class="space-y-1"></div>
+    </div>
+
+    <div class="bg-white rounded-2xl p-4 shadow-sm mb-4">
+      <h3 class="font-bold text-gray-800 mb-2">📚 Recommended Practice</h3>
+      <div id="summary-recommendations" class="space-y-2"></div>
+    </div>
+
+    <div class="flex gap-3 mb-6">
+      <button onclick="shareSummary()" class="flex-1 bg-primary hover:bg-primary-dark text-white font-bold py-3 rounded-xl transition active:scale-95">
+        📤 Share with Parent/Teacher
+      </button>
+      <button onclick="showScreen('home')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 rounded-xl transition active:scale-95">
+        🏠 Home
+      </button>
+    </div>
+  </div>
+
+  <!-- Progress Screen -->
+  <div id="screen-progress" class="flex-1 flex flex-col p-4 hidden overflow-y-auto">
+    <button onclick="showScreen('home')" class="self-start mb-4 text-primary font-bold flex items-center gap-1">← Back Home</button>
+    
+    <h2 class="text-xl font-extrabold text-gray-800 mb-4">📊 Your Progress</h2>
+
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      <div class="bg-white rounded-xl p-4 text-center shadow-sm">
+        <p class="text-3xl font-extrabold text-primary" id="prog-sessions">0</p>
+        <p class="text-xs text-gray-500">Total Sessions</p>
+      </div>
+      <div class="bg-white rounded-xl p-4 text-center shadow-sm">
+        <p class="text-3xl font-extrabold text-secondary" id="prog-avg">--</p>
+        <p class="text-xs text-gray-500">Avg Score</p>
+      </div>
+      <div class="bg-white rounded-xl p-4 text-center shadow-sm">
+        <p class="text-3xl font-extrabold text-accent" id="prog-streak">0 🔥</p>
+        <p class="text-xs text-gray-500">Day Streak</p>
+      </div>
+      <div class="bg-white rounded-xl p-4 text-center shadow-sm">
+        <p class="text-3xl font-extrabold text-danger" id="prog-best">--</p>
+        <p class="text-xs text-gray-500">Best Subject</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl p-4 shadow-sm mb-4">
+      <h3 class="font-bold text-gray-800 mb-3">📈 Score Trend</h3>
+      <canvas id="progress-chart" height="200"></canvas>
+    </div>
+
+    <div class="bg-white rounded-2xl p-4 shadow-sm mb-4">
+      <h3 class="font-bold text-gray-800 mb-3">📚 By Subject</h3>
+      <div id="subject-breakdown" class="space-y-3"></div>
+    </div>
+
+    <div class="bg-white rounded-2xl p-4 shadow-sm mb-6">
+      <h3 class="font-bold text-gray-800 mb-2">👨‍👩‍👧 Parent/Teacher View</h3>
+      <p class="text-sm text-gray-500 mb-3">A quick overview of understanding levels across subjects.</p>
+      <div id="parent-view" class="space-y-2"></div>
+    </div>
+  </div>
+
+  <!-- Settings Screen -->
+  <div id="screen-settings" class="flex-1 flex flex-col p-4 hidden overflow-y-auto">
+    <button onclick="showScreen('home')" class="self-start mb-4 text-primary font-bold flex items-center gap-1">← Back Home</button>
+    
+    <h2 class="text-xl font-extrabold text-gray-800 mb-4">⚙️ Settings</h2>
+
+    <div class="bg-white rounded-2xl p-4 shadow-sm mb-4 space-y-4">
+      <div>
+        <label class="block text-sm font-bold text-gray-700 mb-1">Your Name</label>
+        <input id="settings-name" type="text" class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 text-base focus:border-primary transition">
+      </div>
+      <div>
+        <label class="block text-sm font-bold text-gray-700 mb-1">Grade Level</label>
+        <select id="settings-grade" class="grade-select w-full px-4 py-3 rounded-xl border-2 border-gray-200 text-base focus:border-primary transition bg-white">
+          <option value="K">Kindergarten</option>
+          <option value="1">1st Grade</option>
+          <option value="2">2nd Grade</option>
+          <option value="3">3rd Grade</option>
+          <option value="4">4th Grade</option>
+          <option value="5">5th Grade</option>
+          <option value="6">6th Grade</option>
+          <option value="7">7th Grade</option>
+          <option value="8">8th Grade</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-bold text-gray-700 mb-1">Coach Style</label>
+        <select id="settings-style" class="grade-select w-full px-4 py-3 rounded-xl border-2 border-gray-200 text-base focus:border-primary transition bg-white">
+          <option value="encouraging">🌟 Super Encouraging</option>
+          <option value="balanced">⚖️ Balanced</option>
+          <option value="challenging">🏆 Extra Challenging</option>
+        </select>
+      </div>
+      <button onclick="saveSettings()" class="w-full bg-primary hover:bg-primary-dark text-white font-bold py-3 rounded-xl transition active:scale-95">
+        Save Changes ✓
+      </button>
+    </div>
+
+    <div class="bg-white rounded-2xl p-4 shadow-sm mb-4">
+      <h3 class="font-bold text-danger mb-2">🗑️ Reset Data</h3>
+      <p class="text-sm text-gray-500 mb-3">This will clear all your progress and sessions.</p>
+      <button onclick="if(confirm('Are you sure? This cannot be undone!')){localStorage.clear();location.reload()}" class="w-full bg-danger hover:bg-red-500 text-white font-bold py-3 rounded-xl transition active:scale-95">
+        Reset Everything
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="fixed bottom-20 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg text-sm font-bold z-50 hidden transition-opacity"></div>
+
+<script>
+// Global AI tracking variables
+window.totalAIInputTokens = 0;
+window.totalAIOutputTokens = 0;
+window.totalAITime = 0;
+window.aliasTimeTotals = {};
+
+// App state
+let state = {
+  user: null,
+  sessions: [],
+  currentSession: null,
+  streak: 0,
+  lastSessionDate: null
+};
+
+const API_BASE = 'https://16504442930.work';
+
+// Load state from localStorage
+function loadState() {
+  try {
+    const saved = localStorage.getItem('explainback_state');
+    if (saved) {
+      state = JSON.parse(saved);
+    }
+  } catch(e) { console.error('Load state error:', e); }
+}
+
+function saveState() {
+  try {
+    localStorage.setItem('explainback_state', JSON.stringify(state));
+  } catch(e) { console.error('Save state error:', e); }
+}
+
+// AI Call with retry
+async function callAI(alias, params, retries = 3) {
+  const startTime = Date.now();
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const res = await fetch(`${API_BASE}/run_prompt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ alias, params })
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        if (attempt < retries - 1) continue;
+        // Format error with AI
+        try {
+          const errRes = await fetch(`${API_BASE}/run_prompt`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              alias: 'genericAI',
+              params: { prompt: `Reformat this error message to be user-friendly and empowering for a student to understand what happened. Include a suggestion. Error: ${errorText}. Full API response: ${errorText}. Return JSON with key "message" as a string.` }
+            })
+          });
+          const errData = await errRes.json();
+          throw new Error(errData.message || errorText);
+        } catch(e2) {
+          throw new Error(`Oops! Something went wrong. Please try again in a moment. 🔄 (${errorText})`);
+        }
+      }
+      
+      const data = await res.json();
+      const elapsed = Date.now() - startTime;
+      
+      // Track tokens and time
+      window.totalAITime += elapsed;
+      if (data.input_tokens) window.totalAIInputTokens += data.input_tokens;
+      if (data.output_tokens) window.totalAIOutputTokens += data.output_tokens;
+      if (!window.aliasTimeTotals[alias]) window.aliasTimeTotals[alias] = 0;
+      window.aliasTimeTotals[alias] += elapsed;
+      
+      return data;
+    } catch(e) {
+      if (attempt >= retries - 1) throw e;
+      await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+    }
+  }
+}
+
+// Screen management
+function showScreen(name) {
+  document.querySelectorAll('[id^="screen-"]').forEach(el => el.classList.add('hidden'));
+  document.getElementById(`screen-${name}`).classList.remove('hidden');
+  
+  if (name === 'home') renderHome();
+  if (name === 'progress') renderProgress();
+  if (name === 'settings') renderSettings();
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.remove('hidden');
+  setTimeout(() => toast.classList.add('hidden'), 3000);
+}
+
+// Onboarding
+function completeOnboarding() {
+  const name = document.getElementById('onboard-name').value.trim();
+  const grade = document.getElementById('onboard-grade').value;
+  
+  if (!name) { showToast('Please enter your name! 😊'); return; }
+  if (!grade) { showToast('Please select your grade! 🎓'); return; }
+  
+  state.user = { name, grade, style: 'encouraging', createdAt: new Date().toISOString() };
+  state.sessions = [];
+  state.streak = 0;
+  saveState();
+  showScreen('home');
+}
+
+// Home screen
+function renderHome() {
+  if (!state.user) return;
+  document.getElementById('home-name').textContent = state.user.name;
+  
+  updateStreak();
+  document.getElementById('home-streak').textContent = `${state.streak} 🔥`;
+  
+  const recentList = document.getElementById('recent-list');
+  const recent = (state.sessions || []).slice(-5).reverse();
+  
+  if (recent.length === 0) {
+    recentList.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">No sessions yet — start your first one! 🚀</p>';
+  } else {
+    recentList.innerHTML = recent.map(s => `
+      <div class="bg-white rounded-xl p-3 shadow-sm flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full flex items-center justify-center text-lg ${
+          s.score >= 80 ? 'bg-green-100' : s.score >= 50 ? 'bg-yellow-100' : 'bg-red-100'
+        }">
+          ${s.subject === 'Math' ? '🔢' : s.subject === 'Science' ? '🔬' : s.subject === 'Reading' ? '📖' : '🌍'}
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-bold text-sm text-gray-800 truncate">${s.subject} — ${s.topic || 'Practice'}</p>
+          <p class="text-xs text-gray-500">${new Date(s.date).toLocaleDateString()}</p>
+        </div>
+        <div class="text-right">
+          <p class="font-extrabold text-sm ${s.score >= 80 ? 'text-green-500' : s.score >= 50 ? 'text-yellow-500' : 'text-red-400'}">${s.score}/100</p>
+        </div>
+      </div>
+    `).join('');
+  }
+}
+
+function updateStreak() {
+  const today = new Date().toDateString();
+  const yesterday = new Date(Date.now() - 86400000).toDateString();
+  
+  if (state.lastSessionDate === today) return;
+  if (state.lastSessionDate === yesterday) {
+    // streak continues
+  } else if (state.lastSessionDate !== today) {
+    // check if we had a session today
+    const todaySessions = (state.sessions || []).filter(s => new Date(s.date).toDateString() === today);
+    if (todaySessions.length === 0 && state.lastSessionDate !== yesterday) {
+      state.streak = 0;
+    }
+  }
+}
+
+// Start a session
+async function startSession(subject) {
+  state.currentSession = {
+    subject,
+    topic: '',
+    messages: [],
+    startTime: Date.now(),
+    date: new Date().toISOString(),
+    exchanges: 0
+  };
+  
+  showScreen('chat');
+  document.getElementById('chat-subject').textContent = subject;
+  document.getElementById('chat-topic').textContent = 'Loading a problem...';
+  document.getElementById('chat-messages').innerHTML = '';
+  
+  showTyping();
+  
+  try {
+    const gradeContext = getGradeContext();
+    const data = await callAI('genericAI', {
+      prompt: `You are "Explain-Back Coach", a friendly Socratic homework tutor for a ${gradeContext} student named ${state.user.name}. The subject is ${subject}. 
+
+Generate a grade-appropriate homework problem and then ask the student to solve it AND explain their thinking. Use simple, encouraging language appropriate for the grade level. Use emojis sparingly.
+
+Return JSON with exactly these keys:
+- "topic": string (short 2-4 word topic label, e.g. "Fraction Addition")
+- "problem": string (the homework problem, clearly stated)
+- "message": string (your full friendly message presenting the problem and asking them to explain their solution approach. Do NOT give the answer. End with a question asking them to explain.)
+
+Keep the message under 150 words. Be warm and encouraging.`
+    });
+    
+    hideTyping();
+    
+    state.currentSession.topic = data.topic || subject;
+    document.getElementById('chat-topic').textContent = data.topic || subject;
+    
+    const coachMsg = data.message || `Here's a ${subject} problem! ${data.problem}\n\nCan you solve it and explain your thinking? 🤔`;
+    addMessage('coach', coachMsg);
+    state.currentSession.messages.push({ role: 'coach', text: coachMsg });
+    
+  } catch(e) {
+    hideTyping();
+    addMessage('coach', `Hey ${state.user.name}! 👋 Let's practice ${subject} today. Can you tell me what homework problem you're working on? Type it below and then explain how you'd solve it! 🧠`);
+    state.currentSession.messages.push({ role: 'coach', text: `Let's practice ${subject}. What problem are you working on?` });
+  }
+}
+
+function startCustomSession() {
+  const problem = document.getElementById('custom-problem').value.trim();
+  if (!problem) { showToast('Please type a homework problem first! ✍️'); return; }
+  
+  // Detect subject
+  const lower = problem.toLowerCase();
+  let subject = 'General';
+  if (/\d|math|add|subtract|multiply|divide|fraction|equation|algebra|geometry/i.test(lower)) subject = 'Math';
+  else if (/science|biology|chemistry|physics|experiment|cell|atom|energy/i.test(lower)) subject = 'Science';
+  else if (/read|book|story|chapter|character|poem|author|write/i.test(lower)) subject = 'Reading';
+  else if (/history|geography|social|government|country|war|president/i.test(lower)) subject = 'Social Studies';
+  
+  state.currentSession = {
+    subject,
+    topic: '',
+    problem: problem,
+    messages: [],
+    startTime: Date.now(),
+    date: new Date().toISOString(),
+    exchanges: 0
+  };
+  
+  showScreen('chat');
+  document.getElementById('chat-subject').textContent = subject;
+  document.getElementById('chat-topic').textContent = 'Your homework problem';
+  document.getElementById('chat-messages').innerHTML = '';
+  
+  // Add user's problem
+  addMessage('student', problem);
+  state.currentSession.messages.push({ role: 'student', text: problem });
+  
+  processStudentMessage(problem, true);
+  document.getElementById('custom-problem').value = '';
+}
+
+function getGradeContext() {
+  const g = state.user.grade;
+  if (g === 'K') return 'Kindergarten (age 5-6)';
+  return `Grade ${g} (age ${parseInt(g) + 5}-${parseInt(g) + 6})`;
+}
+
+// Chat functions
+function addMessage(role, text) {
+  const container = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = `flex ${role === 'student' ? 'justify-end' : 'justify-start'}`;
+  
+  const bubble = document.createElement('div');
+  bubble.className = `chat-bubble rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+    role === 'student' 
+      ? 'bg-primary text-white rounded-br-sm' 
+      : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm'
+  }`;
+  bubble.innerHTML = marked.parse(text);
+  
+  div.appendChild(bubble);
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function showTyping() {
+  document.getElementById('typing-indicator').classList.remove('hidden');
+  document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+}
+
+function hideTyping() {
+  document.getElementById('typing-indicator').classList.add('hidden');
+}
+
+function insertHint(text) {
+  const input = document.getElementById('chat-input');
+  input.value = text;
+  input.focus();
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  
+  input.value = '';
+  addMessage('student', text);
+  state.currentSession.messages.push({ role: 'student', text });
+  state.currentSession.exchanges++;
+  
+  await processStudentMessage(text, false);
+}
+
+async function processStudentMessage(text, isFirst) {
+  showTyping();
+  
+  try {
+    const gradeContext = getGradeContext();
+    const style = state.user.style || 'encouraging';
+    const history = state.currentSession.messages.map(m => `${m.role === 'coach' ? 'Coach' : 'Student'}: ${m.text}`).join('\n');
+    const exchanges = state.currentSession.exchanges;
+    
+    const prompt = `You are "Explain-Back Coach", a Socratic homework tutor for a ${gradeContext} student named ${state.user.name}. Style: ${style}.
+
+Subject: ${state.currentSession.subject}
+${state.currentSession.problem ? `Original problem: ${state.currentSession.problem}` : ''}
+
+CONVERSATION SO FAR:
+${history}
+
+${isFirst ? `The student just submitted their homework problem. Ask them to explain their approach or solution step by step. Don't solve it for them.` : `The student just responded. Analyze their explanation for:
+1. Conceptual understanding (do they grasp the WHY, not just the HOW?)
+2. Vocabulary usage appropriate to their grade
+3. Logical reasoning and completeness
+4. Any misconceptions or gaps
+
+Then respond with a Socratic follow-up that:
+- Acknowledges what they got right (be specific and encouraging)
+- Asks a probing question about any gap or to deepen understanding
+- Uses age-appropriate language
+- Does NOT give the answer directly
+- If after ${exchanges} exchanges they seem to understand well, congratulate them and suggest they click "Finish" to see their summary`}
+
+Keep response under 120 words. Be warm and use 1-2 relevant emojis.
+
+Return JSON with exactly these keys:
+- "message": string (your response to the student)
+- "understanding_level": number (0-100 estimate of their current understanding based on the conversation so far)
+- "concepts_demonstrated": array of strings (concepts they've shown understanding of)
+- "gaps_identified": array of strings (concepts they seem confused about or haven't addressed)`;
+
+    const data = await callAI('genericAI', { prompt });
+    
+    hideTyping();
+    
+    const coachMsg = data.message || "That's interesting! Can you tell me more about why you think that? 🤔";
+    addMessage('coach', coachMsg);
+    state.currentSession.messages.push({ 
+      role: 'coach', 
+      text: coachMsg,
+      understanding: data.understanding_level,
+      concepts: data.concepts_demonstrated,
+      gaps: data.gaps_identified
+    });
+    
+    saveState();
+    
+  } catch(e) {
+    hideTyping();
+    addMessage('coach', "Hmm, I need a moment to think! 🤔 Can you try explaining that another way while I catch up?");
+    console.error('AI error:', e);
+  }
+}
+
+async function endSession() {
+  if (state.currentSession && state.currentSession.exchanges > 0) {
+    if (confirm('End this session? You can get a summary of your progress!')) {
+      await endSessionWithSummary();
+    }
+  } else {
+    state.currentSession = null;
+    showScreen('home');
+  }
+}
+
+async function endSessionWithSummary() {
+  if (!state.currentSession || state.currentSession.exchanges === 0) {
+    state.currentSession = null;
+    showScreen('home');
+    return;
+  }
+  
+  showScreen('summary');
+  document.getElementById('summary-title').textContent = 'Generating your report...';
+  document.getElementById('summary-text').innerHTML = '<p class="text-center">🔄 Analyzing your explanations...</p>';
+  document.getElementById('summary-strengths').innerHTML = '';
+  document.getElementById('summary-gaps').innerHTML = '';
+  document.getElementById('summary-recommendations').innerHTML = '';
+  
+  try {
+    const gradeContext = getGradeContext();
+    const history = state.currentSession.messages.map(m => `${m.role === 'coach' ? 'Coach' : 'Student'}: ${m.text}`).join('\n');
+    const elapsed = Math.round((Date.now() - state.currentSession.startTime) / 60000);
+    
+    const data = await callAI('genericAI', {
+      prompt: `Analyze this homework coaching conversation for a ${gradeContext} student named ${state.user.name} studying ${state.currentSession.subject}.
+
+FULL CONVERSATION:
+${history}
+
+Provide a comprehensive assessment. Return JSON with exactly these keys:
+- "score": number (0-100, overall comprehension/explanation quality score)
+- "title": string (a short encouraging title like "Amazing Thinker!" or "Great Progress!")
+- "emoji": string (a single emoji representing their performance)
+- "summary": string (2-3 sentence competency summary written FOR parents/teachers, professional but warm, describing what the student demonstrated)
+- "student_feedback": string (1-2 sentences of encouraging feedback directly to the student)
+- "strengths": array of strings (2-4 specific things the student did well in their explanations)
+- "gaps": array of strings (1-3 specific conceptual gaps or areas for improvement, be constructive)
+- "recommendations": array of objects with keys "title" (string) and "description" (string) - 2-3 specific practice activities or resources to address the gaps
+- "concepts_mastered": array of strings (concepts they clearly understand)
+- "concepts_developing": array of strings (concepts they're still working on)
+
+Be fair but encouraging. Grade-appropriate expectations.`
+    });
+    
+    // Save session
+    const session = {
+      ...state.currentSession,
+      score: data.score || 50,
+      summary: data.summary || '',
+      strengths: data.strengths || [],
+      gaps: data.gaps || [],
+      recommendations: data.recommendations || [],
+      conceptsMastered: data.concepts_mastered || [],
+      conceptsDeveloping: data.concepts_developing || [],
+      endTime: Date.now(),
+      duration: elapsed
+    };
+    
+    if (!state.sessions) state.sessions = [];
+    state.sessions.push(session);
+    
+    // Update streak
+    const today = new Date().toDateString();
+    if (state.lastSessionDate !== today) {
+      const yesterday = new Date(Date.now() - 86400000).toDateString();
+      if (state.lastSessionDate === yesterday || !state.lastSessionDate) {
+        state.streak = (state.streak || 0) + 1;
+      } else {
+        state.streak = 1;
+      }
+      state.lastSessionDate = today;
+    }
+    
+    state.currentSession = null;
+    saveState();
+    
+    // Render summary
+    document.getElementById('summary-emoji').textContent = data.emoji || '🌟';
+    document.getElementById('summary-title').textContent = data.title || 'Great Effort!';
+    document.getElementById('summary-subtitle').textContent = data.student_feedback || `${session.subject} session complete`;
+    document.getElementById('summary-score').textContent = data.score || '--';
+    document.getElementById('summary-exchanges').textContent = session.exchanges;
+    document.getElementById('summary-time').textContent = elapsed || '<1';
+    document.getElementById('summary-text').innerHTML = `<p>${data.summary || 'Session complete.'}</p>`;
+    
+    document.getElementById('summary-strengths').innerHTML = (data.strengths || []).map(s => 
+      `<div class="flex items-start gap-2"><span class="text-green-500">✅</span><span class="text-sm text-gray-700">${s}</span></div>`
+    ).join('');
+    
+    document.getElementById('summary-gaps').innerHTML = (data.gaps || []).map(g => 
+      `<div class="flex items-start gap-2"><span class="text-yellow-500">📌</span><span class="text-sm text-gray-700">${g}</span></div>`
+    ).join('');
+    
+    document.getElementById('summary-recommendations').innerHTML = (data.recommendations || []).map(r => 
+      `<div class="bg-purple-50 rounded-xl p-3 border border-purple-100">
+        <p class="font-bold text-sm text-primary">${r.title || 'Practice'}</p>
+        <p class="text-xs text-gray-600 mt-1">${r.description || ''}</p>
+      </div>`
+    ).join('');
+    
+  } catch(e) {
+    console.error('Summary error:', e);
+    
+    // Fallback summary
+    const session = {
+      ...state.currentSession,
+      score: 60,
+      summary: 'Session completed. Keep practicing your explanation skills!',
+      strengths: ['Participated in the session'],
+      gaps: ['Continue practicing explanations'],
+      recommendations: [],
+      endTime: Date.now(),
+      duration: Math.round((Date.now() - state.currentSession.startTime) / 60000)
+    };
+    
+    state.sessions.push(session);
+    state.currentSession = null;
+    saveState();
+    
+    document.getElementById('summary-title').textContent = 'Session Complete!';
+    document.getElementById('summary-text').innerHTML = '<p>Great job practicing! We had trouble generating a detailed report, but keep it up! 🌟</p>';
+    document.getElementById('summary-score').textContent = '60';
+    document.getElementById('summary-exchanges').textContent = session.exchanges || 0;
+    document.getElementById('summary-time').textContent = session.duration || '<1';
+  }
+}
+
+function shareSummary() {
+  const lastSession = state.sessions[state.sessions.length - 1];
+  if (!lastSession) return;
+  
+  const text = `📊 Explain-Back Report for ${state.user.name}
+Subject: ${lastSession.subject} | Score: ${lastSession.score}/100
+${lastSession.summary}
+Strengths: ${(lastSession.strengths || []).join(', ')}
+Areas to practice: ${(lastSession.gaps || []).join(', ')}`;
+  
+  if (navigator.share) {
+    navigator.share({ title: 'Explain-Back Report', text }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(text).then(() => showToast('Report copied to clipboard! 📋'));
+  }
+}
+
+// Progress screen
+let progressChart = null;
+
+function renderProgress() {
+  const sessions = state.sessions || [];
+  
+  document.getElementById('prog-sessions').textContent = sessions.length;
+  document.getElementById('prog-streak').textContent = `${state.streak || 0} 🔥`;
+  
+  if (sessions.length > 0) {
+    const avg = Math.round(sessions.reduce((a, s) => a + (s.score || 0), 0) / sessions.length);
+    document.getElementById('prog-avg').textContent = avg;
+    
+    // Best subject
+    const subjectScores = {};
+    sessions.forEach(s => {
+      if (!subjectScores[s.subject]) subjectScores[s.subject] = [];
+      subjectScores[s.subject].push(s.score || 0);
+    });
+    
+    let bestSubject = '';
+    let bestAvg = 0;
+    Object.entries(subjectScores).forEach(([subj, scores]) => {
+      const a = scores.reduce((x, y) => x + y, 0) / scores.length;
+      if (a > bestAvg) { bestAvg = a; bestSubject = subj; }
+    });
+    document.getElementById('prog-best').textContent = bestSubject || '--';
+    
+    // Chart
+    const ctx = document.getElementById('progress-chart').getContext('2d');
+    if (progressChart) progressChart.destroy();
+    
+    const last10 = sessions.slice(-10);
+    progressChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: last10.map((s, i) => `#${sessions.length - last10.length + i + 1}`),
+        datasets: [{
+          label: 'Score',
+          data: last10.map(s => s.score || 0),
+          borderColor: '#6C5CE7',
+          backgroundColor: 'rgba(108, 92, 231, 0.1)',
+          tension: 0.4,
+          fill: true,
+          pointRadius: 6,
+          pointBackgroundColor: '#6C5CE7'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { beginAtZero: true, max: 100 },
+          x: { grid: { display: false } }
+        },
+        plugins: { legend: { display: false } }
+      }
+    });
+    
+    // Subject breakdown
+    const subjectDiv = document.getElementById('subject-breakdown');
+    subjectDiv.innerHTML = Object.entries(subjectScores).map(([subj, scores]) => {
+      const a = Math.round(scores.reduce((x, y) => x + y, 0) / scores.length);
+      const emoji = subj === 'Math' ? '🔢' : subj === 'Science' ? '🔬' : subj === 'Reading' ? '📖' : '🌍';
+      return `
+        <div class="flex items-center gap-3">
+          <span class="text-xl">${emoji}</span>
+          <div class="flex-1">
+            <div class="flex justify-between mb-1">
+              <span class="text-sm font-bold text-gray-700">${subj}</span>
+              <span class="text-sm font-bold text-primary">${a}/100</span>
+            </div>
+            <div class="w-full bg-gray-100 rounded-full h-3">
+              <div class="h-3 rounded-full transition-all duration-500 ${a >= 80 ? 'bg-green-400' : a >= 50 ? 'bg-yellow-400' : 'bg-red-400'}" style="width: ${a}%"></div>
+            </div>
+          </div>
+          <span class="text-xs text-gray-400">${scores.length} sessions</span>
+        </div>
+      `;
+    }).join('');
+    
+    // Parent view
+    const parentDiv = document.getElementById('parent-view');
+    parentDiv.innerHTML = Object.entries(subjectScores).map(([subj, scores]) => {
+      const a = Math.round(scores.reduce((x, y) => x + y, 0) / scores.length);
+      const level = a >= 80 ? 'Strong' : a >= 60 ? 'Developing' : a >= 40 ? 'Emerging' : 'Needs Support';
+      const color = a >= 80 ? 'text-green-600 bg-green-50' : a >= 60 ? 'text-blue-600 bg-blue-50' : a >= 40 ? 'text-yellow-600 bg-yellow-50' : 'text-red-600 bg-red-50';
+      return `
+        <div class="flex justify-between items-center py-2 border-b border-gray-50">
+          <span class="font-bold text-sm text-gray-700">${subj}</span>
+          <span class="text-xs font-bold px-3 py-1 rounded-full ${color}">${level} (${a}%)</span>
+        </div>
+      `;
+    }).join('');
+    
+  } else {
+    document.getElementById('prog-avg').textContent = '--';
+    document.getElementById('prog-best').textContent = '--';
+    document.getElementById('subject-breakdown').innerHTML = '<p class="text-sm text-gray-400 text-center">Complete sessions to see breakdown</p>';
+    document.getElementById('parent-view').innerHTML = '<p class="text-sm text-gray-400 text-center">No data yet</p>';
+  }
+}
+
+// Settings
+function renderSettings() {
+  if (!state.user) return;
+  document.getElementById('settings-name').value = state.user.name || '';
+  document.getElementById('settings-grade').value = state.user.grade || '3';
+  document.getElementById('settings-style').value = state.user.style || 'encouraging';
+}
+
+function saveSettings() {
+  state.user.name = document.getElementById('settings-name').value.trim() || state.user.name;
+  state.user.grade = document.getElementById('settings-grade').value;
+  state.user.style = document.getElementById('settings-style').value;
+  saveState();
+  showToast('Settings saved! ✅');
+  showScreen('home');
+}
+
+// Initialize
+(function init() {
+  loadState();
+  
+  if (state.user) {
+    showScreen('home');
+  } else {
+    showScreen('onboarding');
+  }
+})();
+</script>
+</body>
+</html>
